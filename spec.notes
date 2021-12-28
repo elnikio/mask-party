@@ -1,0 +1,38 @@
+
+~~~ words ~~~
+All lower case words (including single character) are operators.
+Operands are literals and uppercase words.
+
+Keywords:
+	e	element of
+	v	for every
+	#	for one
+	u	union
+	n	intersection
+	*	and / mul
+	+	or / sum
+	-	xor / sub
+	/	xnor / div
+	^	power
+	~	re match
+	_	list iterator
+
+~~~ spaces and sets ~~~ 
+
+Two types:
+ 1. space - allocated defined sets, defined by type and pattern (re):
+	|N = int > 0
+	|Z = int
+	|Q = rational
+	|R = double
+	|S = string
+	|B = boolean
+ 2. set - an allocated
+	I = {x e |I : x <  100}
+	J = {x e |S : x ~ "\n*\d4"|
+	K = I u J
+	K_2 = 3
+
+You can define your own spaces, which aren't allocated, but are kept as a pointer to the parent set (e.g. the space of all integers) and a filtering function. They are only evaluated when converted to a set.
+
+~~~ things we should be able to do ~~~
