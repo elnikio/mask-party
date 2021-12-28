@@ -117,6 +117,8 @@ struct token_type** initialize_token_types () {
 
 	"	. ^ $ * + ? { } [ ] \\ | ( )";
 
+	// greedy matching - try to match the longest possible word, then backtrack if fails.
+	// abcdef, then abcd, then abmnk, then akk
 	strcpy(wht -> re, "dog");
 	strcpy(ele -> re, "dick");
 	strcpy(all -> re, "door");
@@ -203,34 +205,6 @@ char string_contains(char* string, char target) {
 			return 1;
 	return 0;
 }
-
-/*
-def listTreePrint(l, depth = 0, lines = [], last = True):
-    prefix = ""
-
-    for tab in range(0, depth):
-        if lines[tab] == True:
-            if tab >= depth - 1:
-                prefix += "├───"
-            else:
-                prefix += "│   "
-        elif tab >= depth - 1:
-            prefix += "└───"
-        else:
-            prefix += "    "
-    print(prefix + str(l))
-
-    if str(type(l)) == "<class 'list'>":
-        for i in range(0, len(l)):
-            if i == len(l) - 1:
-                lastNew = True
-            else:
-                lastNew = False
-            if lastNew:
-                listTreePrint(l[i], depth + 1, lines + [False], lastNew)
-            else:
-                listTreePrint(l[i], depth + 1, lines + [True], lastNew)
-*/
 
 void print_scanner (struct state* scanner, int depth, char* lines, char last) {
 	char* prefix = malloc(64);
