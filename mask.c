@@ -4,7 +4,7 @@
 #include <string.h>
 
 #define STEPPING_DEBUG_MESSAGES		// print debug messages on every key step of the compilation.
-//#define CLEAR_SCANNER_ON_TOKEN		// clear the scanner for every new token. useful for debugging meta-characters in isolation.
+#define CLEAR_SCANNER_ON_TOKEN		// clear the scanner for every new token. useful for debugging meta-characters in isolation.
 #define FALSE	0
 #define TRUE	1
 
@@ -289,6 +289,7 @@ struct state* scanner_generator (struct token_type** token_types) {
 		#endif
 
 		struct state* parent = scanner;
+		struct state* charset_parent;	// store the state before a charset here.
 		#ifdef CLEAR_SCANNER_ON_TOKEN
 		scanner -> next = NULL;
 		#endif
@@ -304,6 +305,7 @@ struct state* scanner_generator (struct token_type** token_types) {
 		char CHAR_SEQUENCE = 0;
 		char PIPE = 0;
 
+		struct state* child = NULL; // always assign new pointers to NULL so you can easily tell if they've been initialized or not.
 		// iterate characters in token_type:
 		for (int j = 0; re[j] != '\0'; j ++){
 			#ifdef STEPPING_DEBUG_MESSAGES
@@ -311,7 +313,8 @@ struct state* scanner_generator (struct token_type** token_types) {
 			#endif
 
 			// INITIALIZE NEW STATE OBJECT
-			struct state* child = NULL; // always assign new pointers to NULL so you can easily tell if they've been initialized or not.
+			if (CHAR_SET < 2)
+				child = NULL;
 			struct state_list* branch; // this is for checking if the branch already exists
 			char exists;
 
@@ -443,7 +446,7 @@ struct state* scanner_generator (struct token_type** token_types) {
 						//printf("Creating state %d to handle char %c.\n", idi, re[j]);
 						if (CHAR_SET > 2) {
 							//goto _dictator;
-							child = parent;
+							//child = parent;	///DICKCKKCKCKCKCKCKCKCKCK
 						}
 						else {
 							_dictator:
@@ -593,8 +596,8 @@ struct state* scanner_generator (struct token_type** token_types) {
 					break;
 			}
 			if (child != NULL) {
-				if (CHAR_SET) {
-					parent = child;
+				if (CHAR_SET > 0) {
+					//parent = child;	// DICKCKKKCKCKCKCKkc
 				}
 				else {
 					parent = child;
