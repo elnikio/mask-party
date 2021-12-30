@@ -60,7 +60,8 @@ struct state {
 	char inci;					// pointer to the top of the inc stack.
 	char **exc;					// array of strings, containing characters to exclude.
 	char exci;					// pointer to the top of the exc stack.
-	int id;						// if this is an exit state, here lay the id of the matched token type.
+	int id;						// unique identifier of the state.
+	int token_id;				// if this is an exit state, here lay the id of the matched token type.
 	struct state_list *next;	// linked list of all possible states the may succeed this one.
 };
 
@@ -108,27 +109,27 @@ struct token_type** initialize_token_types () {
 	struct token_type* equ = malloc(sizeof(struct token_type));
 	struct token_type* col = malloc(sizeof(struct token_type));
 
-	wht -> id = 0;
-	ele -> id = 1;
-	all -> id = 2;
-	any -> id = 3;
-	cup -> id = 4;
-	cap -> id = 5;
-	mul -> id = 6;
-	div -> id = 7;
-	add -> id = 8;
-	sub -> id = 9;
-	pow -> id = 10;
-	rem -> id = 11;
-	ite -> id = 12;
-	num -> id = 13;
-	dec -> id = 14;
-	str -> id = 15;
-	spa -> id = 16;
-	set -> id = 17;
-	var -> id = 18;
-	equ -> id = 19;
-	col -> id = 20;
+	wht -> id = 1;
+	ele -> id = 2;
+	all -> id = 3;
+	any -> id = 4;
+	cup -> id = 5;
+	cap -> id = 6;
+	mul -> id = 7;
+	div -> id = 8;
+	add -> id = 9;
+	sub -> id = 10;
+	pow -> id = 11;
+	rem -> id = 12;
+	ite -> id = 13;
+	num -> id = 14;
+	dec -> id = 15;
+	str -> id = 16;
+	spa -> id = 17;
+	set -> id = 18;
+	var -> id = 19;
+	equ -> id = 20;
+	col -> id = 21;
 
 	wht -> re = malloc(16);
 	ele -> re = malloc(16);
@@ -157,33 +158,35 @@ struct token_type** initialize_token_types () {
 	// greedy matching - try to match the longest possible word, then backtrack if fails.
 	// abcdef, then abcd, then abmnk, then akk
 	
-	strcpy(wht -> re, "[cat]dog");
+	/*
+	strcpy(wht -> re, "[cat]+");
 	strcpy(ele -> re, "[cat]tle");
 	strcpy(all -> re, "coyote");
 	strcpy(any -> re, "dominos");
 	strcpy(cup -> re, "dominant");
-/*	strcpy(wht -> re, "[ \t\n]");
-	strcpy(ele -> re, "e");
-	strcpy(all -> re, "v");
-	strcpy(any -> re, "#");
-	strcpy(cup -> re, "u"); */
-	strcpy(cap -> re, "n");
-	strcpy(mul -> re, "\\*");
-	strcpy(div -> re, "/");
-	strcpy(add -> re, "\\+");
-	strcpy(sub -> re, "\\t-");
-	strcpy(pow -> re, "\\^");
-	strcpy(rem -> re, "~");
-	strcpy(ite -> re, "_");
-	strcpy(num -> re, "[0-9]+");
-	strcpy(dec -> re, "[0-9]+\\.[0-9]+");
-//	strcpy(str -> re, "\"[^\"]+\"");
-	strcpy(str -> re, "[3-7]dollars");
-	strcpy(spa -> re, "[A-Z]+");
-	strcpy(set -> re, "\\|[A-Z]+");
-	strcpy(var -> re, "[a-z][a-z0-9]*");
-	strcpy(equ -> re, "=");
-	strcpy(col -> re, ":");
+	*/
+
+	strcpy(wht -> re, "[ \t\n]");				// 0
+	strcpy(ele -> re, "e");						// 1 ✔
+	strcpy(all -> re, "v");						// 2 ✔
+	strcpy(any -> re, "#");						// 3 ✔
+	strcpy(cup -> re, "u");						// 4 ✔
+	strcpy(cap -> re, "n");						// 5 ✔
+	strcpy(mul -> re, "\\*");					// 6 ✔
+	strcpy(div -> re, "/");						// 7 ✔
+	strcpy(add -> re, "\\+");					// 8 ✔
+	strcpy(sub -> re, "\\-");					// 9 ✔
+	strcpy(pow -> re, "\\^");					// 10 ✔
+	strcpy(rem -> re, "~");						// 11 ✔
+	strcpy(ite -> re, "_");						// 12 ✔
+	strcpy(num -> re, "[0-9]+");				// 13 ✔
+	strcpy(dec -> re, "[0-9]+\\.[0-9]+");		// 14 ✔
+	strcpy(str -> re, "\"[^\"]+\"");			// 15 ✔
+	strcpy(spa -> re, "[A-Z]+");				// 16 ✔
+	strcpy(set -> re, "\\|[A-Z]+");				// 17 ✔
+	strcpy(var -> re, "[a-z][a-z0-9]*");		// 18 ✔
+	strcpy(equ -> re, "=");						// 19 ✔
+	strcpy(col -> re, ":");						// 20 ✔
 	// greedy matching for repeats: [abc]* tries to match with largest possible repeat number, then reduces the number if fail, etc. until success.
 
 	token_types[0] = wht;
@@ -246,25 +249,42 @@ void print_scanner (struct state* scanner, int depth, char* lines, char last) {
 			printf("^");
 	}
 	print_exc (scanner);
-	printf("\n");
+	if (scanner -> next) if (scanner == scanner -> next -> current) {
+		printf(" ⟲");
+		if (scanner->token_id!=0)
+			printf("  \e[0;35m id:%d\e[0m", scanner -> token_id);
+	}
 
 	struct state_list* next;
+	char repeating = FALSE;
 	if (scanner -> next != NULL) {
 		next = scanner -> next;
+		if ((next -> current == scanner) && (scanner -> next -> next != NULL))
+			next = scanner -> next;
+		putchar('\n');
 		while (next != NULL) {
 			char* lines_new = malloc(16);
 			for (int i = 0; i < 16; i ++)
 				lines_new[i] = lines[i];
-			if (next -> next == NULL) {
-				lines_new [depth] = 0;
-				print_scanner (next -> current, depth + 1, lines_new, 1);
+			if (next -> current != scanner) {
+				if (next -> next == NULL) {
+					lines_new [depth] = 0;
+					print_scanner (next -> current, depth + 1, lines_new, 1);
+				}
+				else {
+					lines_new [depth] = 1;
+					print_scanner (next -> current, depth + 1, lines_new, 0);
+				}
 			}
-			else {
-				lines_new [depth] = 1;
-				print_scanner (next -> current, depth + 1, lines_new, 0);
-			}
+			else
+				repeating = TRUE;
 			next = next -> next;
 		}
+	}
+	else {
+		if (scanner->token_id!=0)
+			printf("  \e[0;35m id:%d\e[0m", scanner -> token_id);
+		putchar('\n');
 	}
 }
 
@@ -280,6 +300,7 @@ struct state* scanner_generator (struct token_type** token_types) {
 	scanner -> exc[0] = NULL;
 	scanner -> exci = 0;
 	scanner -> id = 0;
+	scanner -> token_id = 0;
 	scanner -> next = NULL;
 	int idi = 1;	// next id to use
 
@@ -299,15 +320,15 @@ struct state* scanner_generator (struct token_type** token_types) {
 		#ifdef CLEAR_SCANNER_ON_TOKEN
 		scanner -> next = NULL;
 		#endif
-		char COMPLEMENTARY = 0;	// ✔
+		char COMPLEMENTARY = 0;		// ✔
 		char TAIL_MATCH = 0;
-		char REPEAT_ZERO_PLUS = 0;
-		char REPEAT_ONE_PLUS = 0;
-		char CHAR_RANGE = 0;	//
+		char REPEAT_ZERO_PLUS = 0;	// ✔
+		char REPEAT_ONE_PLUS = 0;	// ✔
+		char CHAR_RANGE = 0;		// ✔
 		char REPEAT_ZERO_OR_ONE = 0;
 		char REPEAT_RANGE = 0;
-		char ESCAPING = 0;		// ✔
-		char CHAR_SET = 0;		// ✔
+		char ESCAPING = 0;			// ✔
+		char CHAR_SET = 0;			// ✔
 		char CHAR_SEQUENCE = 0;
 		char PIPE = 0;
 
@@ -327,9 +348,6 @@ struct state* scanner_generator (struct token_type** token_types) {
 			// RESET FLAGS:
 			if (COMPLEMENTARY == 2) COMPLEMENTARY = 0;
 			if (TAIL_MATCH == 2) TAIL_MATCH = 0;
-			if (REPEAT_ZERO_PLUS == 2) REPEAT_ZERO_PLUS = 0;
-			if (REPEAT_ONE_PLUS == 2) REPEAT_ONE_PLUS = 0;
-			if (REPEAT_ZERO_OR_ONE == 2) REPEAT_ZERO_OR_ONE = 0;
 			if (ESCAPING == 2) ESCAPING = 0;
 			ESCAPING += ESCAPING;
 			CHAR_SET += CHAR_SET;
@@ -352,11 +370,52 @@ struct state* scanner_generator (struct token_type** token_types) {
 					break;
 				case '*':
 					if (ESCAPING) goto _default;
-					REPEAT_ZERO_PLUS ++;
+					// ATTACH STATE TO SELF
+					if (CHAR_SET < 4) {		// PROBLEM: this should first check if the state is already pointing to itself. iterate through the next's and compare next->current to parent.
+					struct state_list* parent_infertilized_egg = parent -> next; // parent item in state_list of parent state
+					if (parent_infertilized_egg == NULL) {
+							struct state_list* womb = malloc(sizeof(struct state_list));
+							womb -> current = parent;
+							womb -> next = NULL;
+							parent -> next = womb;
+						}
+						else while (TRUE) {
+							if (parent_infertilized_egg -> next == NULL) {
+								struct state_list* womb = malloc(sizeof(struct state_list));
+								womb -> current = parent;
+								womb -> next = NULL;
+								parent_infertilized_egg -> next = womb;
+								break;
+							}
+							else
+								parent_infertilized_egg = parent_infertilized_egg -> next;
+						}
+					}
+
 					break;
 				case '+':
 					if (ESCAPING) goto _default;
-					REPEAT_ONE_PLUS ++;
+					// ATTACH STATE TO SELF
+					if (CHAR_SET < 4) {
+					struct state_list* parent_infertilized_egg = parent -> next; // parent item in state_list of parent state
+					if (parent_infertilized_egg == NULL) {
+							struct state_list* womb = malloc(sizeof(struct state_list));
+							womb -> current = parent;
+							womb -> next = NULL;
+							parent -> next = womb;
+						}
+						else while (TRUE) {
+							if (parent_infertilized_egg -> next == NULL) {
+								struct state_list* womb = malloc(sizeof(struct state_list));
+								womb -> current = parent;
+								womb -> next = NULL;
+								parent_infertilized_egg -> next = womb;
+								break;
+							}
+							else
+								parent_infertilized_egg = parent_infertilized_egg -> next;
+						}
+					}
 					break;
 				case '-':
 					if (ESCAPING) goto _default;
@@ -415,7 +474,7 @@ struct state* scanner_generator (struct token_type** token_types) {
 									}
 								}
 							}
-
+							// DELETE POINTER TO CURRENT STATE AND GRAB THE ONE FOUND:
 							if (exists) {
 								// unlink the newly created state from the tree
 								for (branch = parent -> next; (branch -> next -> next) != NULL; branch = branch -> next) {
@@ -475,7 +534,6 @@ struct state* scanner_generator (struct token_type** token_types) {
 					if (exists) {
 						//printf("State handling char %c already exists after state %d.\n", re[j], idi - 1);
 					}
-
 					// CREATE THE STATE:
 					else {
 						//printf("Creating state %d to handle char %c.\n", idi, re[j]);
@@ -493,6 +551,7 @@ struct state* scanner_generator (struct token_type** token_types) {
 							child -> exc[0] = NULL;
 							child -> exci = 0;
 							child -> id = idi ++;
+							child -> token_id = 0;
 							child -> next = NULL;
 						}
 
@@ -642,6 +701,7 @@ struct state* scanner_generator (struct token_type** token_types) {
 		msg("Scanner:\n");
 		char* lines = malloc(16);
 		print_scanner (scanner, 0, lines, 1);
+		parent -> token_id = token_types[i]->id;
 	}
 
 	success("Scanner generated successfully!\n");
