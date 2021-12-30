@@ -157,10 +157,8 @@ struct token_type** initialize_token_types () {
 	// greedy matching - try to match the longest possible word, then backtrack if fails.
 	// abcdef, then abcd, then abmnk, then akk
 	
-	//strcpy(wht -> re, "var[0-9]");
-	strcpy(wht -> re, "[ \\t\\n]");
+	strcpy(wht -> re, "[ \t\n]");
 	strcpy(ele -> re, "e");
-	//strcpy(ele -> re, "var[^0-9]");
 	strcpy(all -> re, "v");
 	strcpy(any -> re, "#");
 	strcpy(cup -> re, "u");
@@ -168,7 +166,7 @@ struct token_type** initialize_token_types () {
 	strcpy(mul -> re, "\\*");
 	strcpy(div -> re, "/");
 	strcpy(add -> re, "\\+");
-	strcpy(sub -> re, "-");
+	strcpy(sub -> re, "\\t-");
 	strcpy(pow -> re, "\\^");
 	strcpy(rem -> re, "~");
 	strcpy(ite -> re, "_");
@@ -235,7 +233,12 @@ void print_scanner (struct state* scanner, int depth, char* lines, char last) {
 	}
 	printf("%s %d  ", prefix, scanner -> id);
 	print_inc (scanner);
-	printf(", ^");
+	if (scanner -> exci) {
+		if (scanner -> inci)
+			printf(", ^");
+		else
+			printf("^");
+	}
 	print_exc (scanner);
 	printf("\n");
 
@@ -488,6 +491,7 @@ struct state* scanner_generator (struct token_type** token_types) {
 								re[j] == '$' ||
 								re[j] == '*' ||
 								re[j] == '+' ||
+								re[j] == '-' ||
 								re[j] == '?' ||
 								re[j] == '[' ||
 								re[j] == ']' ||
