@@ -4,7 +4,7 @@
 #include <string.h>
 
 #define STEPPING_DEBUG_MESSAGES		// print debug messages on every key step of the compilation.
-#define CLEAR_SCANNER_ON_TOKEN		// clear the scanner for every new token. useful for debugging meta-characters in isolation.
+//#define CLEAR_SCANNER_ON_TOKEN		// clear the scanner for every new token. useful for debugging meta-characters in isolation.
 #define FALSE	0
 #define TRUE	1
 
@@ -42,11 +42,18 @@ void success(char* text) {
 	#endif
 }
 
-void highlight(char* text) {
+void highlight_bold(char* text) {
 	#ifdef STEPPING_DEBUG_MESSAGES
 	printf("\e[1;33m%s\e[0m", text);
 	#endif
 }
+
+void highlight(char* text) {
+	#ifdef STEPPING_DEBUG_MESSAGES
+	printf("\e[0;33m%s\e[0m", text);
+	#endif
+}
+
 
 struct state {
 	char **inc;					// array of strings. check all the strings. pre-defined strings like \d or \w can easily be included just by adding a pointer.
@@ -58,14 +65,21 @@ struct state {
 };
 
 void print_inc (struct state* state) {
-	//for (int j = 0; j < state -> inci; j ++) {
-		for (int i = 0; (state -> inc)[i] != NULL; i ++) {
-			printf("%s", (state -> inc)[i]);
-			if ((state -> inc)[i+1] != NULL)
-				printf(", ");
-		}
-	//}
+	for (int i = 0; (state -> inc)[i] != NULL; i ++) {
+		highlight ((state -> inc)[i]);
+		if ((state -> inc)[i+1] != NULL)
+			printf(", ");
+	}
 }
+
+void print_exc (struct state* state) {
+	for (int i = 0; (state -> exc)[i] != NULL; i ++) {
+		highlight ((state -> exc)[i]);
+		if ((state -> exc)[i+1] != NULL)
+			printf(", ");
+	}
+}
+
 
 struct token_type** initialize_token_types () {
 	msg("Starting token initializer...\n");
@@ -143,9 +157,10 @@ struct token_type** initialize_token_types () {
 	// greedy matching - try to match the longest possible word, then backtrack if fails.
 	// abcdef, then abcd, then abmnk, then akk
 	
-	strcpy(wht -> re, "[a-k]");
-	//strcpy(wht -> re, "[ \\t\\n]");
+	//strcpy(wht -> re, "var[0-9]");
+	strcpy(wht -> re, "[ \\t\\n]");
 	strcpy(ele -> re, "e");
+	//strcpy(ele -> re, "var[^0-9]");
 	strcpy(all -> re, "v");
 	strcpy(any -> re, "#");
 	strcpy(cup -> re, "u");
@@ -220,6 +235,8 @@ void print_scanner (struct state* scanner, int depth, char* lines, char last) {
 	}
 	printf("%s %d  ", prefix, scanner -> id);
 	print_inc (scanner);
+	printf(", ^");
+	print_exc (scanner);
 	printf("\n");
 
 	struct state_list* next;
@@ -264,7 +281,7 @@ struct state* scanner_generator (struct token_type** token_types) {
 		re = token_types[i] -> re;
 		#ifdef STEPPING_DEBUG_MESSAGES
 		printf("\nParsing re: ");
-		highlight(re);
+		highlight_bold(re);
 		putchar('\n');
 		#endif
 
@@ -305,6 +322,7 @@ struct state* scanner_generator (struct token_type** token_types) {
 			ESCAPING += ESCAPING;
 			CHAR_SET += CHAR_SET;
 			CHAR_RANGE += CHAR_RANGE;
+			COMPLEMENTARY += COMPLEMENTARY;
 
 			// HANDLE CHAR
 			switch(re[j]) {
@@ -313,10 +331,12 @@ struct state* scanner_generator (struct token_type** token_types) {
 				case '^':
 					if (ESCAPING) goto _default;
 					COMPLEMENTARY ++;
+					CHAR_SET /= 2;
 					break;
 				case '$':
 					if (ESCAPING) goto _default;
 					TAIL_MATCH ++;
+					CHAR_SET /= 2;
 					break;
 				case '*':
 					if (ESCAPING) goto _default;
@@ -353,6 +373,7 @@ struct state* scanner_generator (struct token_type** token_types) {
 				case '\\':
 					if (ESCAPING) goto _default;
 					ESCAPING ++;
+					CHAR_SET /= 2;
 					break;
 				case '|':
 					if (ESCAPING) goto _default;
@@ -361,10 +382,12 @@ struct state* scanner_generator (struct token_type** token_types) {
 				case '(':
 					if (ESCAPING) goto _default;
 					CHAR_SEQUENCE = 1;
+					CHAR_SET /= 2;
 					break;
 				case ')':
 					if (ESCAPING) goto _default;
 					CHAR_SEQUENCE = 0;
+					CHAR_SET /= 2;
 					break;
 
 				// TRUE-CHAR:
@@ -434,96 +457,57 @@ struct state* scanner_generator (struct token_type** token_types) {
 									parent_infertilized_egg = parent_infertilized_egg -> next;
 							}
 						}
+
+						// SET CHARACTER ARRAY TARGET
+						char*** inc_or_exc;
+						char* inci_or_exci;
+						if (COMPLEMENTARY) {		// if ^ prefix is set, add chars to exclusion array.
+							inc_or_exc = &(child -> exc);
+							inci_or_exci = &(child -> exci);
+						}
+						else {						// otherwise, add chars to inclusion array.
+							inc_or_exc = &(child -> inc);
+							inci_or_exci = &(child -> inci);
+						}
 				
 						// ADD THE CHARACTERS TO THE NEW STATE
 						if (ESCAPING) {
 
-							switch (re[j]) {
-
+							if (
 								// C ESCAPE CHARS:
-								case 'n':
-									child -> inc[child -> inci] = malloc(2);
-									child -> inc[child -> inci ++][0] = '\n';
-									break;
-								case 't':
-									child -> inc[child -> inci] = malloc(2);
-									child -> inc[child -> inci ++][0] = '\t';
-									break;
-								case 'r':
-									child -> inc[child -> inci] = malloc(2);
-									child -> inc[child -> inci ++][0] = '\r';
-									break;
-								case 'v':
-									child -> inc[child -> inci] = malloc(2);
-									child -> inc[child -> inci ++][0] = '\v';
-									break;
-								case '\\':
-									child -> inc[child -> inci] = malloc(2);
-									child -> inc[child -> inci ++][0] = '\\';
-									break;
-								case '\'':
-									child -> inc[child -> inci] = malloc(2);
-									child -> inc[child -> inci ++][0] = '\'';
-									break;
-								case '\"':
-									child -> inc[child -> inci] = malloc(2);
-									child -> inc[child -> inci ++][0] = '\"';
-									break;
+								re[j] == 'n' ||
+								re[j] == 't' ||
+								re[j] == 'v' ||
+								re[j] == '\\' ||
+								re[j] == '\'' ||
+								re[j] == '\"' ||
 
 								// ESCAPED REGEX METACHARS:
-								case '.':
+								re[j] == '.' ||
+								re[j] == '^' ||
+								re[j] == '$' ||
+								re[j] == '*' ||
+								re[j] == '+' ||
+								re[j] == '?' ||
+								re[j] == '[' ||
+								re[j] == ']' ||
+								re[j] == '|' ||
+								re[j] == '{' ||
+								re[j] == '}' ||
+								re[j] == '(' ||
+								re[j] == ')'
+								) {
+								if (COMPLEMENTARY) {
+									child -> exc[child -> exci] = malloc(2);
+									child -> exc[child -> exci ++][0] = re[j];
+								}
+								else {
 									child -> inc[child -> inci] = malloc(2);
-									child -> inc[child -> inci ++][0] = '.';
-									break;
-								case '^':
-									child -> inc[child -> inci] = malloc(2);
-									child -> inc[child -> inci ++][0] = '^';
-									break;
-								case '$':
-									child -> inc[child -> inci] = malloc(2);
-									child -> inc[child -> inci ++][0] = '$';
-									break;
-								case '*':
-									child -> inc[child -> inci] = malloc(2);
-									child -> inc[child -> inci ++][0] = '*';
-									break;
-								case '+':
-									child -> inc[child -> inci] = malloc(2);
-									child -> inc[child -> inci ++][0] = '+';
-									break;
-								case '?':
-									child -> inc[child -> inci] = malloc(2);
-									child -> inc[child -> inci ++][0] = '?';
-									break;
-								case '[':
-									child -> inc[child -> inci] = malloc(2);
-									child -> inc[child -> inci ++][0] = '[';
-									break;
-								case ']':
-									child -> inc[child -> inci] = malloc(2);
-									child -> inc[child -> inci ++][0] = ']';
-									break;
-								case '|':
-									child -> inc[child -> inci] = malloc(2);
-									child -> inc[child -> inci ++][0] = '|';
-									break;
-								case '{':
-									child -> inc[child -> inci] = malloc(2);
-									child -> inc[child -> inci ++][0] = '{';
-									break;
-								case '}':
-									child -> inc[child -> inci] = malloc(2);
-									child -> inc[child -> inci ++][0] = '}';
-									break;
-								case '(':
-									child -> inc[child -> inci] = malloc(2);
-									child -> inc[child -> inci ++][0] = '(';
-									break;
-								case ')':
-									child -> inc[child -> inci] = malloc(2);
-									child -> inc[child -> inci ++][0] = ')';
-									break;
+									child -> inc[child -> inci ++][0] = re[j];
+								}
+							}
 
+							switch (re[j]) {
 								// REGEX ESCAPE CHARS:
 								case 'd':
 									child -> inc[child -> inci ++] = characters_num;
@@ -543,23 +527,45 @@ struct state* scanner_generator (struct token_type** token_types) {
 									child -> exc[child -> exci ++] = characters_alpha;
 
 							}
+							if (COMPLEMENTARY)
+								child -> exci ++;
+							else
+								child -> inci ++;
 						}
 						else {
 							// ADD CHARS TO INC:
 							if (CHAR_RANGE > 1) {
 								char range = re[j] - re[j-2];
-								child -> inc[child -> inci] = malloc(range + 2);
 								int i = 0;
-								for (; i <= range; i ++)
-									child -> inc[child -> inci][i] = re[j-2] + i;
-								child -> inc[child -> inci ++][i] = '\0';
+								if (COMPLEMENTARY) {
+									child -> exc[child -> exci] = malloc(range + 2);
+									for (; i <= range; i ++)
+										child -> exc[child -> exci][i] = re[j-2] + i;
+									child -> exc[child -> exci ++][i] = '\0';
+								}
+								else {
+									child -> inc[child -> inci] = malloc(range + 2);
+									for (; i <= range; i ++)
+										child -> inc[child -> inci][i] = re[j-2] + i;
+									child -> inc[child -> inci ++][i] = '\0';
+								}
+								CHAR_RANGE = 0;
 							}
 							else {
-								child -> inc[child -> inci] = malloc(2);
-								child -> inc[child -> inci ++][0] = re[j];
+								if (COMPLEMENTARY) {
+									child -> exc[child -> exci] = malloc(2);
+									child -> exc[child -> exci ++][0] = re[j];
+								}
+								else {
+									child -> inc[child -> inci] = malloc(2);
+									child -> inc[child -> inci ++][0] = re[j];
+								}
 							}
 						}
-						child -> inc[child -> inci] = NULL;
+						if (COMPLEMENTARY)
+							(child -> exc)[child -> exci]= NULL;
+						else
+							(child -> inc)[child -> inci]= NULL;
 					}
 					break;
 			}
