@@ -372,6 +372,23 @@ struct state* scanner_generator (struct token_type** token_types) {
 				case ']':
 					if (ESCAPING) goto _default;
 					CHAR_SET = 0;
+					// CHECK IF STATE ALREADY EXISTS FOR COMPLETED CHAR SET:
+					for (branch = parent -> next; branch != NULL; branch = branch -> next) {
+						struct state* next = branch -> current;
+						for (int k = 0; next -> inc[k] != NULL; k ++) {
+							if (string_contains(next -> inc[k], re[j])) {
+								exists = TRUE;
+								child = next;
+								break;
+							}
+						}
+						if (exists) for (int k = 0; next -> exc[k] != NULL; k ++) {
+							if (string_contains(next -> exc[k], re[j])) {
+								exists = FALSE;
+								break;
+							}
+						}
+					}
 					break;
 				case '\\':
 					if (ESCAPING) goto _default;
@@ -397,21 +414,23 @@ struct state* scanner_generator (struct token_type** token_types) {
 				_default:
 				default:
 					
-					// CHECK IF STATE ALREADY EXISTS:
+					// CHECK IF STATE ALREADY EXISTS (NOT FOR CHAR SETS):
 					exists = FALSE;
-					for (branch = parent -> next; branch != NULL; branch = branch -> next) {
-						struct state* next = branch -> current;
-						for (int k = 0; next -> inc[k] != NULL; k ++) {
-							if (string_contains(next -> inc[k], re[j])) {
-								exists = TRUE;
-								child = next;
-								break;
+					if (CHAR_SET == 0) {
+						for (branch = parent -> next; branch != NULL; branch = branch -> next) {
+							struct state* next = branch -> current;
+							for (int k = 0; next -> inc[k] != NULL; k ++) {
+								if (string_contains(next -> inc[k], re[j])) {
+									exists = TRUE;
+									child = next;
+									break;
+								}
 							}
-						}
-						if (exists) for (int k = 0; next -> exc[k] != NULL; k ++) {
-							if (string_contains(next -> exc[k], re[j])) {
-								exists = FALSE;
-								break;
+							if (exists) for (int k = 0; next -> exc[k] != NULL; k ++) {
+								if (string_contains(next -> exc[k], re[j])) {
+									exists = FALSE;
+									break;
+								}
 							}
 						}
 					}
