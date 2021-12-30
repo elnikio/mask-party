@@ -4,7 +4,7 @@
 #include <string.h>
 
 #define STEPPING_DEBUG_MESSAGES		// print debug messages on every key step of the compilation.
-#define CLEAR_SCANNER_ON_TOKEN		// clear the scanner for every new token. useful for debugging meta-characters in isolation.
+//#define CLEAR_SCANNER_ON_TOKEN		// clear the scanner for every new token. useful for debugging meta-characters in isolation.
 #define FALSE	0
 #define TRUE	1
 
@@ -157,11 +157,16 @@ struct token_type** initialize_token_types () {
 	// greedy matching - try to match the longest possible word, then backtrack if fails.
 	// abcdef, then abcd, then abmnk, then akk
 	
-	strcpy(wht -> re, "[ \t\n]");
+	strcpy(wht -> re, "[cat]dog");
+	strcpy(ele -> re, "[cat]tle");
+	strcpy(all -> re, "coyote");
+	strcpy(any -> re, "dominos");
+	strcpy(cup -> re, "dominant");
+/*	strcpy(wht -> re, "[ \t\n]");
 	strcpy(ele -> re, "e");
 	strcpy(all -> re, "v");
 	strcpy(any -> re, "#");
-	strcpy(cup -> re, "u");
+	strcpy(cup -> re, "u"); */
 	strcpy(cap -> re, "n");
 	strcpy(mul -> re, "\\*");
 	strcpy(div -> re, "/");
@@ -172,7 +177,8 @@ struct token_type** initialize_token_types () {
 	strcpy(ite -> re, "_");
 	strcpy(num -> re, "[0-9]+");
 	strcpy(dec -> re, "[0-9]+\\.[0-9]+");
-	strcpy(str -> re, "\"[^\"]+\"");
+//	strcpy(str -> re, "\"[^\"]+\"");
+	strcpy(str -> re, "[3-7]dollars");
 	strcpy(spa -> re, "[A-Z]+");
 	strcpy(set -> re, "\\|[A-Z]+");
 	strcpy(var -> re, "[a-z][a-z0-9]*");
@@ -376,18 +382,47 @@ struct state* scanner_generator (struct token_type** token_types) {
 					if (ESCAPING) goto _default;
 					CHAR_SET = 0;
 					// CHECK IF STATE ALREADY EXISTS FOR COMPLETED CHAR SET:
+					// iterate branches of parent
 					for (branch = parent -> next; branch != NULL; branch = branch -> next) {
-						struct state* next = branch -> current;
-						for (int k = 0; next -> inc[k] != NULL; k ++) {
-							if (string_contains(next -> inc[k], re[j])) {
-								exists = TRUE;
-								child = next;
-								break;
+						exists = TRUE;
+						if (branch -> current != child) {
+							struct state* next = branch -> current;
+							// check if all the characters in child are present in next:
+							for (int l = 0; child -> inc[l] != NULL; l ++) {
+								for (int m = 0; child -> inc[l][m] != '\0'; m ++) {
+									char found = FALSE;
+									for (int k = 0; next -> inc[k] != NULL; k ++) {
+										if (string_contains(next -> inc[k], child -> inc[l][m])) {
+											found = TRUE;
+										}
+									}
+									if (!found) {
+										exists = FALSE;	// if only 1 character is not found clause is rejected.
+									}
+								}
 							}
-						}
-						if (exists) for (int k = 0; next -> exc[k] != NULL; k ++) {
-							if (string_contains(next -> exc[k], re[j])) {
-								exists = FALSE;
+							// check if all the characters in next are present in child:
+							for (int k = 0; next -> inc[k] != NULL; k ++) {
+								for (int m = 0; next -> inc[k][m] != '\0'; m ++) {
+									char found = FALSE;
+									for (int l = 0; child -> inc[l] != NULL; l ++) {
+										if (string_contains(child-> inc[l], next -> inc[k][m])) {
+											found = TRUE;
+										}
+									}
+									if (!found) {
+										exists = FALSE;	// if only 1 character is not found clause is rejected.
+									}
+								}
+							}
+
+							if (exists) {
+								// unlink the newly created state from the tree
+								for (branch = parent -> next; (branch -> next -> next) != NULL; branch = branch -> next) {
+								}
+								branch -> next = NULL;
+								// select the found existing state
+								child = next;
 								break;
 							}
 						}
